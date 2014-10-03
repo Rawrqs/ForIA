@@ -7,7 +7,19 @@ setData(data, positive = rep(NA, length(colnames(data)[-1])),
   negative = rep(NA, length(colnames(data)[-1])), must.have = rep(NA,
   length(colnames(data)[-1])), at.most = rep(NA, length(colnames(data)[-1])))
 }
+\arguments{
+\item{data}{the data, used for colnames and calculating number of variables}
+
+\item{positive}{represents vector of variables with positive signs}
+
+\item{negative}{represents vector of variables with negative signs}
+
+\item{must.have}{represents vector of variables that must be included at least one}
+
+\item{at.most}{limits the amount of variables to m (option in setSpec function) in a model}
+}
 \description{
-setData function
+This function allows to set restrinctions on signs and number of variables included in the space of restricted models
+This function is used by the getModels function and then transfered to some other funcions such as topModels
 }
 

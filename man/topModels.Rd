@@ -5,7 +5,14 @@
 \usage{
 topModels(object, a = 9, restrictions = TRUE, ...)
 }
+\arguments{
+\item{object}{an object from the getModels function}
+
+\item{a}{the number of best models to show based on R2.DW statistic}
+
+\item{restrictions}{boolean specifying if restrictions from restrictModels should be applied}
+}
 \description{
-topModels function
+Returns "a" best models. When restrictions is set TRUE, a restrictModels function is used to set restrictions on the model importance.
 }
 

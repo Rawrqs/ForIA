@@ -1,5 +1,14 @@
 #'setData function
+#'
+#'This function allows to set restrinctions on signs and number of variables included in the space of restricted models
+#'This function is used by the getModels function and then transfered to some other funcions such as topModels
+#'@param data the data, used for colnames and calculating number of variables
+#'@param positive represents vector of variables with positive signs
+#'@param negative represents vector of variables with negative signs
+#'@param must.have represents vector of variables that must be included at least one
+#'@param at.most limits the amount of variables to m (option in setSpec function) in a model
 #'@export
+
 
 setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])), 
                            negative    = rep(NA, length(colnames(data)[-1])), 
@@ -9,7 +18,7 @@ setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])),
    positive    <- positive==1
    negative    <- negative==1
    must.have   <- must.have == 1
-   at.most  <- at.most == 1
+   at.most     <- at.most == 1
    
    names(positive)   <- colnames(data)[-1]
    names(negative)   <- colnames(data)[-1]
@@ -23,6 +32,15 @@ setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])),
 }
 
 #'setSpec function
+#'This function allows to set restrictions on some models characteristics when calling the restrictModels function
+#'@param data the data, used to set limit on the maximum amount of variables
+#'@param T the length of the data, should not be changed by user if not necessary
+#'@param m refers to the at.most parameter from setData function
+#'@param nv.max the maximum number of variables in a model, (default = min(T-2, length(colnames(data)[-1]),3)) due to computation time
+#'@param alfa significance level of the t-test 
+#'@param j.b p value for jb statistics
+#'@param b.p p value for b.p statistics
+#'@param R.s minimum accepted r squared adjusted
 #'@export
 
 setSpec <- function(data,
@@ -110,12 +128,17 @@ return(list(models   = lst,
             signs    = signs))
 }
 
-#'restrykcjeModele function
+#'restrictModels function
+#'
+#'This function is used by the topModels functions when restrictions = TRUE. It sets the restrictions which vere specified in setData and setSpec functions
+#'@param object the object from getModels function
+#'@param specs specs from the object, may be replaced by setSpecs output
+#'@param signs signs from the object, may be replaced by setSigns output
 #' @import lmtest
 #' @import tseries
 #' @export
 
-restrykcjeModele <- function(object, specs = object$specs, signs = object$signs) {
+restrictModels <- function(object, specs = object$specs, signs = object$signs) {
    temp <- numeric()
    
    for (i in 1:length(object$models)) {
@@ -149,11 +172,17 @@ restrykcjeModele <- function(object, specs = object$specs, signs = object$signs)
 }
 
 #'topModels function
+#'
+#'Returns "a" best models. When restrictions is set TRUE, a restrictModels function is used to set restrictions on the model importance.
+#'@param object an object from the getModels function
+#'@param a the number of best models to show based on R2.DW statistic
+#'@param restrictions boolean specifying if restrictions from restrictModels should be applied
 #'@export
 
 topModels <- function(object, a = 9, restrictions = TRUE, ...)
 {
-   if (restrictions == TRUE) object = restrykcjeModele(object, ...)
+   if (restrictions == TRUE) object = restrictModels(object, ...)
+   a <- min(a, length(object$models))
    
    par(mfrow=c(ceiling(sqrt(a)),ceiling(sqrt(a))))
    
@@ -163,7 +192,7 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
    for(i in 1:a){
       #print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]))
       
-      print(cat(cat(colnames(object$data)[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]], " = "), cat(names(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]$coefficients), sep = " + ")))
+      cat(cat(colnames(object$data)[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]], " = "), cat(names(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]$coefficients), sep = " + "))
       cat("\n")
       print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]])[[4]])
       cat("\n")
@@ -181,4 +210,107 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
    par(mfrow=c(1,1))
 }
 
+#'loadModels function
+#'loading list of models models from a text file
+#'@export
+
+loadModels <- function(...) load(...)
+
+#'saveModels function
+#'saving list of models to a text file
+#'@param object object from getModels function
+#'@export
+
+saveModels <- function(object, ...) save(object, ...)
+
+#'filterGap function
+#'adds hp filter gap calculated on logs
+#'@import mFilter
+#'@export
+
+filterGap  <- function(df, column, lambda = 6.25) {
+   data <- df   
+   for( i in 1:length(column) ) {
+      temp <- vector()
+      if(any(is.na(data[,column[i]])) == TRUE) {
+         temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
+         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <-hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
+      }
+      temp <- hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
+      
+      data <- cbind(data, temp)
+   }
+   
+   if (is.numeric(column) == TRUE) 
+   {
+      colnames(data) <- c(colnames(df), paste("gap", colnames(df)[column], sep = "_")) 
+   } else {
+      colnames(data) <- c(colnames(df), paste("gap", column, sep = "_")) 
+   }
+   
+   return(data)
+}
+
+#'filterTrend function
+#'adds trend line from hp filter
+#'@import mFilter
+#'@export
+
+filterTrend <- function(df, column, lambda = 6.25) {
+   data <- df   
+   for( i in 1:length(column) ) {
+      temp <- vector()
+      if(any(is.na(data[,column[i]])) == TRUE) {
+         temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
+         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
+      }
+      else temp <- exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
+      
+      data <- cbind(data, temp)
+   }
+   
+   if (is.numeric(column) == TRUE) 
+   {
+      colnames(data) <- c(colnames(df), paste("trend", colnames(df)[column], sep = "_")) 
+   } else {
+      colnames(data) <- c(colnames(df), paste("trend", column, sep = "_")) 
+   }
+   
+   data
+}
+
+#'addLogs function
+#'adds Logs to the data.frame
+#'@export
+
+addLogs <- function(df, column) {
+   data <- cbind(df, log(df[,column]))
+   if (is.numeric(column) == TRUE) 
+   {
+      colnames(data) <- c(colnames(df), paste("ln", colnames(df)[column], sep = "_")) 
+   } else {
+      colnames(data) <- c(colnames(df), paste("ln", column, sep = "_")) 
+   }
+   data
+}
+
+#'addDiffs function
+#'adds diffs to the data.frame
+#'@export
+
+addDiffs <- function(df, column) {
+   data <- df   
+   for( i in 1:length(column) ) {
+      data <- cbind(data, c(NA, diff(data[,column[i]])))
+   }
+   
+   if (is.numeric(column) == TRUE) 
+   {
+      colnames(data) <- c(colnames(df), paste("diff", colnames(df)[column], sep = "_")) 
+   } else {
+      colnames(data) <- c(colnames(df), paste("diff", column, sep = "_")) 
+   }
+   
+   data
+}
 
