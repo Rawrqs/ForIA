@@ -3,9 +3,9 @@
 \alias{setData}
 \title{setData function}
 \usage{
-setData(data, positive = rep(NA, length(colnames(dane)[-1])),
-  negative = rep(NA, length(colnames(dane)[-1])), must.have = rep(NA,
-  length(colnames(dane)[-1])), at.most = rep(NA, length(colnames(dane)[-1])))
+setData(data, positive = rep(NA, length(colnames(data)[-1])),
+  negative = rep(NA, length(colnames(data)[-1])), must.have = rep(NA,
+  length(colnames(data)[-1])), at.most = rep(NA, length(colnames(data)[-1])))
 }
 \description{
 setData function

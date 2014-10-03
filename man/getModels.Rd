@@ -4,7 +4,7 @@
 \title{getModels function
 Moar}
 \usage{
-getModels(data, specs = setSpec(data))
+getModels(data, specs = setSpec(data), signs = setData(data))
 }
 \description{
 getModels function
