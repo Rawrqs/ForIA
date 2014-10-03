@@ -1,4 +1,5 @@
 #'setData function
+#'@export
 
 setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])), 
                            negative    = rep(NA, length(colnames(data)[-1])), 
@@ -22,6 +23,7 @@ setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])),
 }
 
 #'setSpec function
+#'@export
 
 setSpec <- function(data,
                     T      = dim(na.omit(data))[1],
@@ -41,8 +43,18 @@ setSpec <- function(data,
                R.s      = R.s))          
 }
 
-#'getModels function
-#'Moar
+#' getModels function
+#'
+#' This is the main function to use in the ForIA package
+#' The input is a data.frame, where the first column is the dependent variable. This function uses 2 optional functions as arguments
+#' specs - which specifies all restrictions on the model selection
+#' signs - which restricts the model space by restrictions on parameters
+#' @export
+#' @param data test
+#' @param specs test
+#' @param signs test
+#' @examples
+#' getModels(cars)
 
 getModels <- function(data, specs = setSpec(data), signs = setData(data))   
 {
@@ -99,8 +111,11 @@ return(list(models   = lst,
 }
 
 #'restrykcjeModele function
+#' @import lmtest
+#' @import tseries
+#' @export
 
-restrykcjeModele <- function(object, specs = object$specs, signs = setData(object$data)) {
+restrykcjeModele <- function(object, specs = object$specs, signs = object$signs) {
    temp <- numeric()
    
    for (i in 1:length(object$models)) {
@@ -134,6 +149,7 @@ restrykcjeModele <- function(object, specs = object$specs, signs = setData(objec
 }
 
 #'topModels function
+#'@export
 
 topModels <- function(object, a = 9, restrictions = TRUE, ...)
 {
@@ -164,3 +180,5 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
    }
    par(mfrow=c(1,1))
 }
+
+

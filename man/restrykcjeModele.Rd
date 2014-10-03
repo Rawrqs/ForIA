@@ -3,7 +3,7 @@
 \alias{restrykcjeModele}
 \title{restrykcjeModele function}
 \usage{
-restrykcjeModele(object, specs = object$specs, signs = setData(object$data))
+restrykcjeModele(object, specs = object$specs, signs = object$signs)
 }
 \description{
 restrykcjeModele function
