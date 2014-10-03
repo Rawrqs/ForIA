@@ -1,0 +1,9 @@
+Package: ForIA
+Type: Package
+Title: Forecasts all possible variants with restrictions
+Version: 0.1
+Date: 2014-10-03
+Author: Jakub Winter
+Maintainer: Jakub Winter <jakubwinter@mensa.org.pl>
+Description: Test description
+License: GPL-3
