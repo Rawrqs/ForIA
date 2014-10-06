@@ -7,3 +7,6 @@ Author: Jakub Winter
 Maintainer: Jakub Winter <jakubwinter@mensa.org.pl>
 Description: Test description
 License: GPL-3
+Imports:
+    mFilter,
+    tseries

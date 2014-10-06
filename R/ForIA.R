@@ -201,10 +201,13 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
       cat("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
       cat("\n")
       
-      if(is.null(object$data) == FALSE) {
-         plot(predict(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]], object$data), col = "red", type = "l", xlab = "", ylab = "")
-         lines(object$data[,1], type = "b")
-      }
+      par(mar=c(1,1,1,1))
+          
+      if (is.null(object$data) == FALSE) {
+             plot(predict(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]], object$data), col = "red", type = "l", xlab = "", ylab = "")
+             lines(object$data[,1], type = "b")
+          }
+      par(mar = c(5.1, 4.1, 4.1, 2.1))
       
    }
    par(mfrow=c(1,1))
@@ -313,4 +316,3 @@ addDiffs <- function(df, column) {
    
    data
 }
-
