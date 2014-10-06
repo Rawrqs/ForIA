@@ -144,7 +144,7 @@ restrictModels <- function(object, specs = object$specs, signs = object$signs) {
    for (i in 1:length(object$models)) {
       if(any(c(  !signs$negative[c(names(which(object$models[[i]]$coefficients[-1]>=0)))] ,  !signs$positive[c(names(which(object$models[[i]]$coefficients[-1]<=0)))],          summary(object$models[[i]])[[4]][,4][-1]<specs$alfa)==FALSE,na.rm=TRUE)) next # warunki na znaki oraz istotnos
 
-      if(summary(object$models[[i]])$r.squared<specs$R.s) next # r kwadrat adjusted 
+      if(summary(object$models[[i]])$adj.r.squared<specs$R.s) next # r kwadrat adjusted 
       
       if(jarque.bera.test(residuals(object$models[[i]]))[3]$p.value<specs$j.b) next #normalnosc 
       
@@ -192,11 +192,11 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
    for(i in 1:a){
       #print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]))
       
-      cat(cat(colnames(object$data)[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]], " = "), cat(names(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]$coefficients), sep = " + "))
+      cat(cat(colnames(object$data)[1], " = "), cat(names(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]$coefficients), sep = " + "))
       cat("\n")
       print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]])[[4]])
       cat("\n")
-      cat(paste0("R2: ", round(object$R2[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2), ", R2 DW: ", round(object$R2.DW[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2)))
+      cat(paste0("R2 adjusted: ", round(object$R2[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2), ", R2 with DW correction: ", round(object$R2.DW[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2)))
       cat("\n")
       cat("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
       cat("\n")
