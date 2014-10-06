@@ -3,7 +3,8 @@
 \alias{restrictModels}
 \title{restrictModels function}
 \usage{
-restrictModels(object, specs = object$specs, signs = object$signs)
+restrictModels(object, specs = object$specs, signs = object$signs,
+  type = object$type)
 }
 \arguments{
 \item{object}{the object from getModels function}

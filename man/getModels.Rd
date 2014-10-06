@@ -3,7 +3,8 @@
 \alias{getModels}
 \title{getModels function}
 \usage{
-getModels(data, specs = setSpec(data), signs = setData(data))
+getModels(data, type = "lm", specs = setSpec(data), signs = if (type ==
+  "plm") setData(data[, -c(1, 2)]) else setData(data), ...)
 }
 \arguments{
 \item{data}{test}

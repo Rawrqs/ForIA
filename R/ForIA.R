@@ -10,20 +10,21 @@
 #'@export
 
 
-setData <- function(data,  positive    = rep(NA, length(colnames(data)[-1])), 
-                           negative    = rep(NA, length(colnames(data)[-1])), 
-                           must.have   = rep(NA, length(colnames(data)[-1])), 
-                           at.most     = rep(NA, length(colnames(data)[-1])))
+setData <- function(data,  cutCpls = 1,
+                           positive    = rep(NA, length(colnames(data)[-cutCpls])), 
+                           negative    = rep(NA, length(colnames(data)[-cutCpls])), 
+                           must.have   = rep(NA, length(colnames(data)[-cutCpls])), 
+                           at.most     = rep(NA, length(colnames(data)[-cutCpls])))
 {
    positive    <- positive==1
    negative    <- negative==1
    must.have   <- must.have == 1
    at.most     <- at.most == 1
    
-   names(positive)   <- colnames(data)[-1]
-   names(negative)   <- colnames(data)[-1]
-   names(must.have)  <- colnames(data)[-1]
-   names(at.most)    <- colnames(data)[-1]
+   names(positive)   <- colnames(data)[-cutCpls]
+   names(negative)   <- colnames(data)[-cutCpls]
+   names(must.have)  <- colnames(data)[-cutCpls]
+   names(at.most)    <- colnames(data)[-cutCpls]
    
    return(list(positive    = positive,
                negative    = negative,
@@ -74,7 +75,10 @@ setSpec <- function(data,
 #' @examples
 #' getModels(cars)
 
-getModels <- function(data, specs = setSpec(data), signs = setData(data))   
+getModels <- function(data, type = "lm", specs = setSpec(data),
+                      signs = if(type == "plm") setData(data[,-c(1,2)]) else setData(data),
+#                      signs = setData(data),
+                      ...)   
 {
 
 lst   <-list()
@@ -83,6 +87,8 @@ R2.DW <- vector()
 
 #wlasciwy loop dla wszystkich kombinacji
 #licznik dla progress baru
+if (type == "lm") {
+   
 n.max          <- 0
 progress.bar   <-0
 for   (i in 1:specs$nv.max) {
@@ -100,20 +106,48 @@ for   (i in 1:specs$nv.max) {
       Sys.sleep(0.1)
       # update progress bar
       setTxtProgressBar(pb, progress.bar)  
+   
       
-      kolumny<-combn(length(colnames(data)[-1]),i)[,s]
-      #if (dim(data[,c(1,kolumny+1)])[1] < 4) next
-      
-      b <-lm(data[,c(1,kolumny+1)])
-      #fit b <- glm(data[,c(1,kolumny+1)],family=gaussian())
-       
+      kolumny <- combn(length(colnames(data)[-1]),i)[,s]
+      b <-lm(data[,c(1,kolumny+1)], ...)
+         
       lst   <- c(lst,list(b))
       R2    <- c(R2,summary(b)$adj.r.squared)
-      R2.DW <- c(R2.DW, (1-(exp(abs(2-dwtest(b)[1]$statistic))-1)/(exp(abs(2))-1)) * summary(b)$adj.r.squared)
+      R2.DW <- c(R2.DW, (1-(exp(abs(2-dwtest(b)[1]$statistic))-1)/(exp(abs(2))-1)) * summary(b)$adj.r.squared)        
+      }
+
+}}
       
-      
-   }
-}
+if (type == "plm") {
+   n.max          <- 0
+   progress.bar   <-0
+   for   (i in 1:specs$nv.max) {
+      for   (s in 1:dim(combn(length(colnames(data)[-c(1:3)]),i))[2]){
+         n.max <- n.max + 1
+      }}
+   
+   
+pb <- txtProgressBar(min = 0, max = n.max , style = 3)
+for   (i in 1:specs$nv.max) {
+         for (s in 1:dim(combn(length(colnames(data)[-c(1:3)]),i))[2]){
+         #print(combn(length(colnames(data)[-1]),i)[,s])
+         
+         progress.bar <- progress.bar + 1
+         Sys.sleep(0.1)
+         # update progress bar
+         setTxtProgressBar(pb, progress.bar) 
+         
+         kolumny <- combn(length(colnames(data)[-c(1:3)]),i)[,s]
+         model = paste0(colnames(data)[3],"~",paste(colnames(data[,-c(1:3)][,kolumny, drop = FALSE]),collapse="+"))
+         b     = plm(formula(model),data = data, ...)  
+         
+         lst   <- c(lst,list(b))
+         R2    <- c(R2,summary(b)$r.squared[2])
+         R2.DW <- c(R2.DW, (1-(exp(abs(2-pdwtest(b)[[1]]))-1)/(exp(abs(2))-1)) * summary(b)$r.squared[2])
+         }
+   
+}}
+
 close(pb)
 if(length(R2)>0) {
    names(R2)   <- 1:length(R2)
@@ -125,7 +159,8 @@ return(list(models   = lst,
             R2.DW    = R2.DW,
             data     = data,
             specs    = specs,
-            signs    = signs))
+            signs    = signs,
+            type     = type))
 }
 
 #'restrictModels function
@@ -138,9 +173,11 @@ return(list(models   = lst,
 #' @import tseries
 #' @export
 
-restrictModels <- function(object, specs = object$specs, signs = object$signs) {
+restrictModels <- function(object, specs = object$specs, signs = object$signs, type = object$type) {
    temp <- numeric()
    
+
+if (type == "lm") {
    for (i in 1:length(object$models)) {
       if(any(c(  !signs$negative[c(names(which(object$models[[i]]$coefficients[-1]>=0)))] ,  !signs$positive[c(names(which(object$models[[i]]$coefficients[-1]<=0)))],          summary(object$models[[i]])[[4]][,4][-1]<specs$alfa)==FALSE,na.rm=TRUE)) next # warunki na znaki oraz istotnos
 
@@ -161,13 +198,34 @@ restrictModels <- function(object, specs = object$specs, signs = object$signs) {
       temp <- c(temp, i)
       #print(temp)
    }
+}
+if (type == "plm"){
+   for (i in 1:length(object$models)) {   
+      if(any(c(  !signs$negative[c(names(which(object$models[[i]]$coefficients>=0)))] ,  !signs$positive[c(names(which(object$models[[i]]$coefficients<=0)))],          summary(object$models[[i]])[[1]][,4]<specs$alfa)==FALSE,na.rm=TRUE)) next # warunki na znaki oraz istotnos   
+      
+      if(summary(object$models[[i]])$r.squared[2]<specs$R.s) next # r kwadrat adjusted 
+      
+      
+      if(any(signs$must.have, na.rm=TRUE)==TRUE){
+         if(!any(signs$must.have[c(names(object$models[[i]]$coefficients))],na.rm=TRUE)==TRUE) next #must have
+      }
+      
+      if(any(signs$at.most, na.rm=TRUE)==TRUE){
+         if(sum(signs$at.most[c(names(object$models[[i]]$coefficients))],na.rm=TRUE) > specs$m) next #at.most
+      }
+      #UWAGA NIE MA ZAIMPLEMENTOWANEGO TESTU NA NORMALNOSC ORAZ HETEROSKEDASTYCZNOSC
+      temp <- c(temp, i)
+      #print(temp)
+   }
+}
    #return(object$models[temp])
    return(list(models   = object$models[temp],
                 R2      = object$R2[temp],
                 R2.DW   = object$R2.DW[temp],
                 data    = object$data,
                 specs   = object$specs,
-                signs   = object$signs))
+                signs   = object$signs,
+                type    = object$type))
                 
 }
 
@@ -189,6 +247,23 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
    names(object$R2.DW) <- 1:length(object$R2.DW)
    
    #names(R2temp) <- 1:length(lista)
+   
+   if (object$type == "plm") {
+      for(i in 1:a){
+      cat(cat(colnames(object$data)[1], " = "), cat(names(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]$coefficients), sep = " + "))      
+      cat("\n")      
+      print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]])[[1]])
+      cat("\n")
+      cat(fixef(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]))
+      cat("\n")
+      cat(paste0("R2 adjusted: ", round(object$R2[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2), ", R2 with DW correction: ", round(object$R2.DW[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]],2)))
+      cat("\n")
+      cat("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+      cat("\n")
+      }
+   }
+   
+   if (object$type == "lm") { 
    for(i in 1:a){
       #print(summary(object$models[[as.numeric(names(sort(object$R2.DW, decreasing = TRUE)))[i]]]))
       
@@ -211,6 +286,8 @@ topModels <- function(object, a = 9, restrictions = TRUE, ...)
       
    }
    par(mfrow=c(1,1))
+   
+   }
 }
 
 #'loadModels function
@@ -316,3 +393,4 @@ addDiffs <- function(df, column) {
    
    data
 }
+

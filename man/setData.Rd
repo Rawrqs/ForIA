@@ -3,9 +3,11 @@
 \alias{setData}
 \title{setData function}
 \usage{
-setData(data, positive = rep(NA, length(colnames(data)[-1])),
-  negative = rep(NA, length(colnames(data)[-1])), must.have = rep(NA,
-  length(colnames(data)[-1])), at.most = rep(NA, length(colnames(data)[-1])))
+setData(data, cutCpls = 1, positive = rep(NA,
+  length(colnames(data)[-cutCpls])), negative = rep(NA,
+  length(colnames(data)[-cutCpls])), must.have = rep(NA,
+  length(colnames(data)[-cutCpls])), at.most = rep(NA,
+  length(colnames(data)[-cutCpls])))
 }
 \arguments{
 \item{data}{the data, used for colnames and calculating number of variables}
