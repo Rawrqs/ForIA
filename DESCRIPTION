@@ -7,6 +7,10 @@ Author: Jakub Winter
 Maintainer: Jakub Winter <jakubwinter@mensa.org.pl>
 Description: Test description
 License: GPL-3
+Encoding: UTF-8
 Imports:
     mFilter,
-    tseries
+    tseries,
+    plm,
+    ggplot2,
+    zoo
