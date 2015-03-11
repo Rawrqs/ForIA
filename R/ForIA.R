@@ -829,14 +829,15 @@ lag_pmr <- function(df, column, lag = 1, ...){
 transform_pmr <- function(data, column, method = "ln", ...){
    temp_attr                     <- attributes(data)$output_table
    
-   if(method == "ln")                                          data <-        addLogs(data, column, ...)
-   if(method == "diff")                                        data <-        addDiffs(data, column, ...)
-   if(method == "hp_gap")                                      data <-        filterGap(data, column, ...)
-   if(method == "hp_trend")                                    data <-        filterTrend(data, column, ...)
-   if(method == "lag")                                         data <-        lag_pmr(data, column, lag = 1, ...)
-   if(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1)   data <-        addT(data, column, FUN = get(method), name = method, ...) 
+   if(method == "ln")                                          data <-        addLogs     (data, column, ...)
+   if(method == "diff")                                        data <-        addDiffs    (data, column, ...)
+   if(method == "hp_gap")                                      data <-        filterGap   (data, column, ...)
+   if(method == "hp_trend")                                    data <-        filterTrend (data, column, ...)
+   if(method == "lag")                                         data <-        lag_pmr     (data, column, lag = 1, ...)
+   if(method == "custom")                                      data <-        addCustom   (data, column, FUN = log, name = deparse(substitute(FUN)), ...)
+   if(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1)   data <-        addT        (data, column, FUN = get(method), name = method, ...) 
    
-   if(is.null(method) | (!(method %in% c("ln", "diff", "hp_gap", "hp_trend", "transform", "lag")) & !(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1))) stop("unsupported method")
+   if(is.null(method) | (!(method %in% c("ln", "diff", "hp_gap", "hp_trend", "transform", "lag", "custom")) & !(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1))) stop("unsupported method")
    
    if (is.numeric(column) == TRUE) {
       new_output_table            <- data.frame(input       = colnames(data)[column], 
@@ -856,6 +857,7 @@ transform_pmr <- function(data, column, method = "ln", ...){
    
    return(data)
 } 
+
 
 #'merge ts function
 #'
