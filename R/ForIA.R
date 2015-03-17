@@ -425,25 +425,26 @@ saveModels <- function(object, ...) save(object, ...)
 #'@import mFilter
 #'@export
 filterGap  <- function(df, column, lambda = 6.25) {
-   data <- df   
+   if(class(df)[1] == "mts") temp.start = start(df)[1]
+   data <- as.data.frame(df)   
    for( i in 1:length(column) ) {
       temp <- vector()
       if(any(is.na(data[,column[i]])) == TRUE) {
          temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
          temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <-hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
-      }
+      }else {
       temp <- hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
-      
+      }
       data <- cbind(data, temp)
    }
    
    if (is.numeric(column) == TRUE) 
    {
-      colnames(data) <- c(colnames(df), paste("gap", colnames(df)[column], sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("hp", colnames(df)[column], sep = "_")) 
    } else {
-      colnames(data) <- c(colnames(df), paste("gap", column, sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("hp", column, sep = "_")) 
    }
-   
+   if(class(df)[1] == "mts") data = ts(data, start = temp.start)
    return(data)
 }
 
@@ -452,27 +453,29 @@ filterGap  <- function(df, column, lambda = 6.25) {
 #'@import mFilter
 #'@export
 filterTrend <- function(df, column, lambda = 6.25) {
-   data <- df   
+   if(class(df)[1] == "mts") temp.start = start(df)[1]
+   data <- as.data.frame(df)   
    for( i in 1:length(column) ) {
       temp <- vector()
       if(any(is.na(data[,column[i]])) == TRUE) {
          temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
-         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
+         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <-exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
+      }else {
+         temp <- exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
       }
-      else temp <- exp(hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$trend)
-      
       data <- cbind(data, temp)
    }
    
    if (is.numeric(column) == TRUE) 
    {
-      colnames(data) <- c(colnames(df), paste("trend", colnames(df)[column], sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("hpt", colnames(df)[column], sep = "_")) 
    } else {
-      colnames(data) <- c(colnames(df), paste("trend", column, sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("hpt", column, sep = "_")) 
    }
-   
+   if(class(df)[1] == "mts") data = ts(data, start = temp.start)
    data
 }
+
 
 #'addLogs function
 #'adds Logs to the data.frame
@@ -492,18 +495,19 @@ addLogs <- function(df, column) {
 #'adds diffs to the data.frame
 #'@export
 addDiffs <- function(df, column) {
-   data <- df   
+   if(class(df)[1] == "mts") temp.start = start(df)[1]
+   data <- as.data.frame(df)  
    for( i in 1:length(column) ) {
       data <- cbind(data, c(NA, diff(data[,column[i]])))
    }
    
    if (is.numeric(column) == TRUE) 
    {
-      colnames(data) <- c(colnames(df), paste("diff", colnames(df)[column], sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("d", colnames(df)[column], sep = "_")) 
    } else {
-      colnames(data) <- c(colnames(df), paste("diff", column, sep = "_")) 
+      colnames(data) <- c(colnames(df), paste("d", column, sep = "_")) 
    }
-   
+   if(class(df)[1] == "mts") data = ts(data, start = temp.start)
    data
 }
 
@@ -560,23 +564,24 @@ best_models <- function(object, specs = object$specs, signs = object$signs, type
 #'@param selection an index of the models to plot; works best with best_models function
 #'@param method a criteria used to determine the best model
 #'@export
-ggplotRegression <- function (object, selection = 1:length(object$models)) {
-   
-   get_seq<- function() {
+ggplotRegression <- function(object, selection = 1:length(object$models)) 
+{
+   get_seq <- function() {
       temp2 <- vector()
-      for( i in 1:length(object$models[selection]) ) temp2 <- append(temp2, rep(selection[i], length(object$data[,1])))
+      for (i in 1:length(object$models[selection])) temp2 <- append(temp2, 
+                                                                    rep(selection[i], length(object$data[, 1])))
       return(temp2)
    }
-   part1 = data.frame(values = rep(object$data[,1], length(object$models[selection])), type = "y",   time = 1:length(object$data[,1]), model = get_seq())
-   part2 = data.frame(values = unlist(lapply(object$models[selection], function(x) predict(x, x$data))), type = "fit", time = 1:length(object$data[,1]), model = get_seq()) 
-   
+   part1 = data.frame(values = rep(object$data[, 1], length(object$models[selection])), 
+                      type = "y", time = 1:length(object$data[, 1]), model = get_seq())
+   part2 = data.frame(values = unlist(lapply(object$models[selection], 
+                                             function(x) predict(x, object$data))), type = "fit", time = 1:length(object$data[, 
+                                                                                                                              1]), model = get_seq())
    df <- rbind(part1, part2)
    df$model <- ordered(df$model, levels = selection)
-   
-   ggplot(df, aes(y = values, x = time, color = type)) + 
-      geom_line() +
-      # labs(title = paste("R2 = ",signif(summary(fit)$adj.r.squared, 5))) +
-      facet_wrap(~model)
+   ggplot(df, aes(y = values, x = time, color = type)) + geom_line() + 
+      facet_wrap(~model) + 
+      ggtitle(colnames(object$data)[1])
 }
 
 
@@ -589,6 +594,7 @@ ggplotRegression <- function (object, selection = 1:length(object$models)) {
 ntoc <- function(x) {
    temp_change <- x
    for( i in 2:length(x) ) temp_change[i] <- x[i] / x[i-1] - 1 
+   temp_change[1] = NA
    return(temp_change)
 }
 #'transformation function
@@ -596,7 +602,7 @@ ntoc <- function(x) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-ntoi <- function(x) {
+ntor <- function(x) {
    (ntoc(x) + 1) * 100
 }
 #'transformation function
@@ -605,11 +611,11 @@ ntoi <- function(x) {
 #'@param x a ts object
 #'@param base
 #'@export
-ntor <- function(x, base = 2010) {
+ntoi <- function(x, base = 2010) {
    temp_constant <- x
    temp_constant[index(temp_constant) == base] <- 100
    for( i in length(x):1 ) if( i < which((index(temp_constant) == base) == TRUE)) temp_constant[i] = temp_constant[i+1] / (x[i+1] / x[i]  )
-   for( i in 1:length(x) ) if( i < which((index(temp_constant) == base) == TRUE)) temp_constant[i-1] / (x[i  ] / x[i-1])
+   for( i in 1:length(x) ) if( i > which((index(temp_constant) == base) == TRUE)) temp_constant[i] = temp_constant[i-1] * (x[i  ] / x[i-1])
    return(temp_constant)
 }
 #'transformation function
@@ -641,7 +647,7 @@ cton <- function(x, base = 100) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-ctoi <- function(x) {
+ctor <- function(x) {
    ((x) + 1) * 100
 }
 #'transformation function
@@ -650,8 +656,8 @@ ctoi <- function(x) {
 #'@param x a ts object
 #'@param base
 #'@export
-ctor <- function(x, base = 100) {
-   ntor(cton(x), base = base)
+ctoi <- function(x, base = 2010) {
+   ntoi(cton(x), base = base)
 }
 #'transformation function
 #'
@@ -668,15 +674,15 @@ ctop <- function(x, aggregate = 100) {
 #'@param x a ts object
 #'@param base
 #'@export
-iton <- function(x, base = 100) {
-   itoc(x) %>% cton(base = base)  
+rton <- function(x, base = 100) {
+   rtoc(x) %>% cton(base = base)  
 }
 #'transformation function
 #'
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-itoc <- function(x) {
+rtoc <- function(x) {
    x/100 - 1
 }
 #'transformation function
@@ -685,8 +691,8 @@ itoc <- function(x) {
 #'@param x a ts object
 #'@param base
 #'@export
-itor <- function(x, base = 100) {
-   itoc(x) %>% ctor(base = base)
+rtoi <- function(x, base = 100) {
+   rtoc(x) %>% ctoi(base = base)
 }
 #'transformation function
 #'
@@ -694,8 +700,8 @@ itor <- function(x, base = 100) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-itop <- function(x, aggregate = 100, ...) {
-   iton(x, ...) %>% ntop(aggregate = aggregate)
+rtop <- function(x, aggregate = 100, ...) {
+   rton(x, ...) %>% ntop(aggregate = aggregate)
 }
 #'transformation function
 #'
@@ -703,7 +709,7 @@ itop <- function(x, aggregate = 100, ...) {
 #'@param x a ts object
 #'@param base
 #'@export
-rton <- function(x, base = 100) {
+iton <- function(x, base = 100) {
    base.index <- start(na.omit(x))[1]
    
    x <- x * base / x[index(x) == base.index[1]]
@@ -715,7 +721,7 @@ rton <- function(x, base = 100) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-rtoc <- function(x) {
+itoc <- function(x) {
    ntoc(x)
 }
 #'transformation function
@@ -723,8 +729,8 @@ rtoc <- function(x) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-rtoi <- function(x) {
-   ntoi(x)
+itor <- function(x) {
+   ntor(x)
 }
 #'transformation function
 #'
@@ -732,8 +738,8 @@ rtoi <- function(x) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-rtop <- function(x, aggregate = 100) {
-   rton(x, ...) %>% ntop(aggregate = aggregate)
+itop <- function(x, aggregate = 100) {
+   iton(x, ...) %>% ntop(aggregate = aggregate)
 }
 #'transformation function
 #'
@@ -759,7 +765,7 @@ ptoc <- function(x, aggregate = 100) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-ptoi <- function(x, aggregate = 100, ...) {
+ptor <- function(x, aggregate = 100, ...) {
    pton(x, aggregate = aggregate) %>% ntoc(...) 
 }
 #'transformation function
@@ -768,8 +774,8 @@ ptoi <- function(x, aggregate = 100, ...) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-ptor <- function(x, aggregate = 100, ...) {
-   pton(x, aggregate = aggregate) %>% ntor(...) 
+ptoi <- function(x, aggregate = 100, ...) {
+   pton(x, aggregate = aggregate) %>% ntoi(...) 
 }
 
 
@@ -780,22 +786,82 @@ ptor <- function(x, aggregate = 100, ...) {
 #'@param column a character or numeric vector 
 #'@param FUN a transformation function to be used
 #'@export
+#'@import magrittr
 addT <- function (df, column, FUN, name = deparse(substitute(FUN)), ...) {
    data <- df
-   for (i in 1:length(column)) {
-      data <- cbind(data, FUN(data[, column[i]], ...))
+   
+
+      
+   for (i in column) {
+      if (is.numeric(column) == TRUE)   if(length(grep(paste0("_", substr(name, 1,1)), column[i])) == 0) stop(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
+      if (is.character(column) == TRUE) if(length(grep(paste0("_", substr(name, 1,1)), colnames(df)[i])) == 0) stop(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
+      
+      
+
+      
+      data <- merge_ts(list(data, FUN(data[, i, drop = FALSE], ...)))
    }
    if (is.numeric(column) == TRUE) {
-      colnames(data) <- c(colnames(df), paste(name, colnames(df)[column], 
-                                              sep = "_"))
+      colnames(data) <- c(colnames(df), 
+                          gsub(paste0("_", substr(name, 1,1)), paste0("_", substr(name, 4,4)), colnames(df)[column]) )
    }
    else {
-      colnames(data) <- c(colnames(df), paste(name, column, 
-                                              sep = "_"))
+      colnames(data) <- c(colnames(df), gsub(paste0("_", substr(name, 1,1)), paste0("_", substr(name, 4,4)), column))
    }
    data
 }
 
+#'opis do zmiany
+#'
+#'This function allows to use transformation function on several columns of mts or data.frame object
+#'@param df a data.frame object
+#'@param column a character or numeric vector 
+#'@param FUN a transformation function to be used
+#'@export
+#'@import magrittr
+addI <- function (df, column, FUN, name = deparse(substitute(FUN)), ...) {
+   data <- df
+   if(length(grep("(i|c)to(n|q|u|r|p)", name)) == 1){
+      for (i in column) {
+        
+         data <- merge_ts(list(data, FUN(data[, i, drop = FALSE], ...)))
+      }
+      if (is.numeric(column) == TRUE) {
+         colnames(data) <- c(colnames(df), 
+                             gsub(paste0(substr(name, 1,1), "_"), "", colnames(df)[column]) )
+      }
+      else {
+         colnames(data) <- c(colnames(df), gsub(paste0(substr(name, 1,1), "_"), "", column))
+      }
+   } 
+   if(length(grep("(n|q|u|r|p)to(i|c)", name)) == 1){  
+      for (i in column) {
+         
+         data <- merge_ts(list(data, FUN(data[, i, drop = FALSE], ...)))
+      }
+      if (is.numeric(column) == TRUE) {
+         colnames(data) <- c(colnames(df), 
+                             paste0(substr(name, 4,4), "_", colnames(df)[column]) )
+      }
+      else {
+         colnames(data) <- c(colnames(df), paste0(substr(name, 4,4), "_", column))
+      } 
+   }
+   if(length(grep("(i|c)to(i|c)", name)) == 1){
+      for (i in column) {
+         
+         data <- merge_ts(list(data, FUN(data[, i, drop = FALSE], ...)))
+      }
+      if (is.numeric(column) == TRUE) {
+         colnames(data) <- c(colnames(df), 
+                             gsub(paste0(substr(name, 1,1), "_"), paste0(substr(name, 4,4), "_"), colnames(df)[column]) )
+      }
+      else {
+         colnames(data) <- c(colnames(df), gsub(paste0(substr(name, 1,1), "_"), paste0(substr(name, 4,4), "_"), column))
+      }
+   }
+   data
+}
 #'transformation expander for lag function
 #'
 #'This function allows to use transformation function on several columns of mts or data.frame object
@@ -803,10 +869,11 @@ addT <- function (df, column, FUN, name = deparse(substitute(FUN)), ...) {
 #'@param column a character or numeric vector 
 #'@param lag is the number of lags (may be negative)
 #'@export
+#'@import zoo
 lag_pmr <- function(df, column, lag = 1, ...){
    data <- ts.union(as.ts(df), as.ts(lag(as.zoo(df[, column, drop = FALSE]), k = lag, ...)))
-   if(lag < 0) lag <- abs(lag)
    ifelse(lag < 0, d <- "l", d <- "f")
+   if(lag < 0) lag <- abs(lag)
    if (is.numeric(column) == TRUE) {
       colnames(data) <- c(colnames(df), paste(paste0(d, lag), colnames(df)[column], 
                                               sep = "_"))
@@ -826,37 +893,59 @@ lag_pmr <- function(df, column, lag = 1, ...){
 #'@param column a character or numeric vector 
 #'@param method is the transformation method used
 #'@export
-transform_pmr <- function(data, column, method = "ln", ...){
-   temp_attr                     <- attributes(data)$output_table
-   
-   if(method == "ln")                                          data <-        addLogs     (data, column, ...)
-   if(method == "diff")                                        data <-        addDiffs    (data, column, ...)
-   if(method == "hp_gap")                                      data <-        filterGap   (data, column, ...)
-   if(method == "hp_trend")                                    data <-        filterTrend (data, column, ...)
-   if(method == "lag")                                         data <-        lag_pmr     (data, column, lag = 1, ...)
-   if(method == "custom")                                      data <-        addCustom   (data, column, FUN = log, name = deparse(substitute(FUN)), ...)
-   if(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1)   data <-        addT        (data, column, FUN = get(method), name = method, ...) 
-   
-   if(is.null(method) | (!(method %in% c("ln", "diff", "hp_gap", "hp_trend", "transform", "lag", "custom")) & !(length(grep("(n|c|i|r|p)to(n|c|i|r|p)", method)) == 1))) stop("unsupported method")
-   
+#'@import zoo
+transform_pmr <- function(data, column, method = "ln", ...) 
+{
+   df <- data
+   temp_attr <- attributes(data)$output_table
+   if (method == "ln") 
+      data <- addLogs(data, column, ...)
+   if (method == "d") 
+      data <- addDiffs(data, column, ...)
+   if (method == "hp") 
+      data <- filterGap(data, column, ...)
+   if (method == "hpt") 
+      data <- filterTrend(data, column, ...)
+   if (method == "(l|l\\d|f\\)") 
+      if (method == "l\\") lag = as.numeric(substr(method, 2, 2))
+      if (method == "f\\") lag = -as.numeric(substr(method, 2, 2))
+      data <- lag_pmr(data, column, ...)
+   if (method == "custom") 
+      data <- addCustom(data, column, FUN = log, name = deparse(substitute(FUN)), 
+                        ...)
+   if (length(grep("(n|q|u|r|p)to(n|q|u|r|p)", method)) == 1){
+      if(length(grep("(n|q|u)to(n|q|u)", method)) == 1) stop("unable to do such transformation, please revise your input to output desired")
+      data <- addT(data, column, FUN = get(method), name = method, 
+                   ...)
+   }
+   if ((length(grep("(i|c)to(n|q|u|r|p|i|c)", method)) == 1) | (length(grep("(n|q|u|r|p|i|c)to(i|c)", method)) == 1)) {
+      
+      first <- substr(method, 1,1)
+      last <- substr(method, 4,4)
+      if(substr(method, 1,1) %in% c("q","u")) first <- "n"
+      if(substr(method, 4,4) %in% c("q","u")) last <- "n"
+      method <- paste0(first, "to", last)
+      
+      data <- addI(data, column, FUN = get(method), name = method, ...)
+   }
+   if (is.null(method) | (!(method %in% c("ln", "d", "hp", 
+                                          "hpt", "l", "custom")) & !(length(grep("(n|q|u|r|p|c|i)to(n|q|u|r|p|c|i)", 
+                                                                                 method)) == 1))) 
+      stop("unsupported method")
    if (is.numeric(column) == TRUE) {
-      new_output_table            <- data.frame(input       = colnames(data)[column], 
-                                                operations  = rep(method, length(colnames(data)[column])),
-                                                output      = paste(method, colnames(data)[column],
-                                                                    sep = "_"))
+      new_output_table <- data.frame(variable = colnames(data)[column], 
+                                     operation = rep(method, length(colnames(data)[column])), 
+                                     output = colnames(data)[(dim(df)[2]+1):(dim(df)[2]+length(column))]
+      )
    }
    else {
-      new_output_table            <- data.frame(input       = column, 
-                                                operations  = rep(method, length(column)),
-                                                output      = paste(method, column,
-                                                                    sep = "_"))
+      new_output_table <- data.frame(input = column, operation = rep(method, 
+                                                                     length(column)), output = colnames(data)[(dim(df)[2]+1):(dim(df)[2]+length(column))]
+      )
    }
-   
-   
-   attr(data, "output_table") <- rbind(temp_attr, new_output_table) 
-   
+   attr(data, "output_table") <- rbind(temp_attr, new_output_table)
    return(data)
-} 
+}
 
 
 #'merge ts function
@@ -885,21 +974,17 @@ merge_ts <- function(df_list){
 #'@param time_start is the starting period for trends
 #'@param time_names is a vector of names for created trends
 #'@export
-addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time", "hyp_time", "sqrt_time")){
-   
-   assign(time_names[1], c(rep(NA, time_start - start(mtcars_ts)[1]), 1:(end(mtcars_ts)[1] - time_start + 1)))
-   assign(time_names[2], log (get(time_names[1])))
-   assign(time_names[3], 1/  (get(time_names[1])))
+addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time", 
+                                                              "hyp_time", "sqrt_time")) 
+{
+   assign(time_names[1], c(rep(NA, time_start - start(data)[1]), 
+                           1:(end(data)[1] - time_start + 1)))
+   assign(time_names[2], log(get(time_names[1])))
+   assign(time_names[3], 1/(get(time_names[1])))
    assign(time_names[4], sqrt(get(time_names[1])))
-   
-   df <- cbind(data, 
-               get(time_names[1]), 
-               get(time_names[2]), 
-               get(time_names[3]), 
-               get(time_names[4]))
-   
+   df <- cbind(data, get(time_names[1]), get(time_names[2]), 
+               get(time_names[3]), get(time_names[4]))
    colnames(df) <- c(colnames(data), time_names)
-   
    return(df)
 }
 
@@ -911,16 +996,27 @@ addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time",
 #'@param time_names is a vector of names for created trends
 #'@examples mtcars %>% addCustom(2:3, FUN = function(x) log(x), name = "lol")
 #'@export
-addCustom <- function(df, column, FUN = log, name = deparse(substitute(FUN))){
+addCustom <- function(df, column, FUN = log, name = deparse(substitute(FUN)), end = TRUE){
    data <- cbind(df, FUN(df[, column, drop = FALSE]))
-   if (is.numeric(column) == TRUE) {
-      colnames(data) <- c(colnames(df), paste(name, colnames(df)[column], 
-                                              sep = "_"))
+   if(end == FALSE) {
+      if (is.numeric(column) == TRUE) {
+         colnames(data) <- c(colnames(df), paste(name, colnames(df)[column], 
+                                                 sep = "_"))
+      }
+      else {
+         colnames(data) <- c(colnames(df), paste(name, column, 
+                                                 sep = "_"))
+      }
+   }else{
+      if (is.numeric(column) == TRUE) {
+         colnames(data) <- c(colnames(df), paste(colnames(df)[column], name, 
+                                                 sep = "_"))
+      }
+      else {
+         colnames(data) <- c(colnames(df), paste(column, name, 
+                                                 sep = "_"))
+      }  
    }
-   else {
-      colnames(data) <- c(colnames(df), paste(name, column, 
-                                              sep = "_"))
-   }
+   
    data
 }
-
