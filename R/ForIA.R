@@ -793,8 +793,8 @@ addT <- function (df, column, FUN, name = deparse(substitute(FUN)), ...) {
 
       
    for (i in column) {
-      if (is.numeric(column) == TRUE)   if(length(grep(paste0("_", substr(name, 1,1)), column[i])) == 0) stop(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
-      if (is.character(column) == TRUE) if(length(grep(paste0("_", substr(name, 1,1)), colnames(df)[i])) == 0) stop(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
+      if (is.numeric(column) == TRUE)   if(length(grep(paste0("_", substr(name, 1,1)), column[i])) == 0) warning(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
+      if (is.character(column) == TRUE) if(length(grep(paste0("_", substr(name, 1,1)), colnames(df)[i])) == 0) warning(paste0("variable is not of a type: ", substr(name, 1,1), " or has a wrong name")) 
       
       
 
@@ -906,13 +906,13 @@ transform_pmr <- function(data, column, method = "ln", ...)
       data <- filterGap(data, column, ...)
    if (method == "hpt") 
       data <- filterTrend(data, column, ...)
-   if (method == "(l|l\\d|f\\)") 
+   if (method == "(l|l\\d|f\\)") {
       if (method == "l\\") lag = as.numeric(substr(method, 2, 2))
       if (method == "f\\") lag = -as.numeric(substr(method, 2, 2))
       data <- lag_pmr(data, column, ...)
+   }
    if (method == "custom") 
-      data <- addCustom(data, column, FUN = log, name = deparse(substitute(FUN)), 
-                        ...)
+      data <- addCustom(data, column, ...)
    if (length(grep("(n|q|u|r|p)to(n|q|u|r|p)", method)) == 1){
       if(length(grep("(n|q|u)to(n|q|u)", method)) == 1) stop("unable to do such transformation, please revise your input to output desired")
       data <- addT(data, column, FUN = get(method), name = method, 
@@ -996,27 +996,63 @@ addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time",
 #'@param time_names is a vector of names for created trends
 #'@examples mtcars %>% addCustom(2:3, FUN = function(x) log(x), name = "lol")
 #'@export
-addCustom <- function(df, column, FUN = log, name = deparse(substitute(FUN)), end = TRUE){
-   data <- cbind(df, FUN(df[, column, drop = FALSE]))
-   if(end == FALSE) {
-      if (is.numeric(column) == TRUE) {
-         colnames(data) <- c(colnames(df), paste(name, colnames(df)[column], 
-                                                 sep = "_"))
+
+   addCustom <- function(df, column, FUN = log, name = deparse(substitute(FUN)), end = TRUE, custom.name = NULL){
+      
+      if(class(df)[1] == "mts") temp.start = start(df)[1]
+      data <- as.data.frame(df)   
+      for( i in 1:length(column) ) data <- cbind(data, FUN(data[, column[i], drop = FALSE]))
+      
+      
+      if(end == FALSE) {
+         if (is.numeric(column) == TRUE) {
+            colnames(data) <- c(colnames(df), paste(name, colnames(df)[column], 
+                                                    sep = "_"))
+         }
+         else {
+            colnames(data) <- c(colnames(df), paste(name, column, 
+                                                    sep = "_"))
+         }
+      }else{
+         if (is.numeric(column) == TRUE) {
+            colnames(data) <- c(colnames(df), paste(colnames(df)[column], name, 
+                                                    sep = "_"))
+         }
+         else {
+            colnames(data) <- c(colnames(df), paste(column, name, 
+                                                    sep = "_"))
+         }  
       }
-      else {
-         colnames(data) <- c(colnames(df), paste(name, column, 
-                                                 sep = "_"))
+      
+      if(is.null(custom.name) == FALSE) colnames(data) <- custom.name(df, column, name)
+      
+      method <<- name
+      
+      if(class(df)[1] == "mts") data = ts(data, start = temp.start)
+      
+      data
+   }
+
+filterGap  <- function(df, column, lambda = 6.25) {
+   if(class(df)[1] == "mts") temp.start = start(df)[1]
+   data <- as.data.frame(df)   
+   for( i in 1:length(column) ) {
+      temp <- vector()
+      if(any(is.na(data[,column[i]])) == TRUE) {
+         temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
+         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <-hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
+      }else {
+         temp <- hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
       }
-   }else{
-      if (is.numeric(column) == TRUE) {
-         colnames(data) <- c(colnames(df), paste(colnames(df)[column], name, 
-                                                 sep = "_"))
-      }
-      else {
-         colnames(data) <- c(colnames(df), paste(column, name, 
-                                                 sep = "_"))
-      }  
+      data <- cbind(data, temp)
    }
    
-   data
+   if (is.numeric(column) == TRUE) 
+   {
+      colnames(data) <- c(colnames(df), paste("hp", colnames(df)[column], sep = "_")) 
+   } else {
+      colnames(data) <- c(colnames(df), paste("hp", column, sep = "_")) 
+   }
+   if(class(df)[1] == "mts") data = ts(data, start = temp.start)
+   return(data)
 }
