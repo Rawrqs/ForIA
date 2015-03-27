@@ -5,7 +5,7 @@
 \title{addCustom function}
 \usage{
 addCustom(df, column, FUN = log, name = deparse(substitute(FUN)),
-  end = TRUE)
+  end = TRUE, custom.name = NULL)
 }
 \arguments{
 \item{data}{is a mts object}
@@ -19,5 +19,9 @@ This is a function allowing to create custom transformation for selected columns
 }
 \examples{
 mtcars \%>\% addCustom(2:3, FUN = function(x) log(x), name = "lol")
+
+transform_pmr(ts(mtcars), column = c("cyl", "disp"), method = "custom", end = TRUE, name = "r", FUN = function(x) {x * as.data.frame(ts(mtcars)[,1])},
+custom.name = function(df, column, name) c(colnames(df),
+                                          sapply(column, function(x) ifelse(length(grep("n", x)) > 0, gsub("n", "r", x), paste0(x, "_r")))))
 }
 

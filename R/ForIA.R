@@ -149,14 +149,17 @@ progress.bar   <-0
 for   (i in 1:specs$nv.max) {
       for   (s in 1:dim(combn(length(colnames(data)[-1]),i))[2]){
             n.max <- n.max + 1
-   }}
+      }}
+
 
 
 pb <- txtProgressBar(min = 0, max = n.max , style = 3)
 for   (i in 1:specs$nv.max) {
       for (s in 1:dim(combn(length(colnames(data)[-1]),i))[2]){
       #print(combn(length(colnames(data)[-1]),i)[,s])
-      
+
+      tryCatch({ 
+               
       progress.bar <- progress.bar + 1
       Sys.sleep(0.1)
       # update progress bar
@@ -168,10 +171,13 @@ for   (i in 1:specs$nv.max) {
          
       lst   <- c(lst,list(b))
       R2    <- c(R2,summary(b)$adj.r.squared)
-      R2.DW <- c(R2.DW, (1-(exp(abs(2-dwtest(b)[1]$statistic))-1)/(exp(abs(2))-1)) * summary(b)$adj.r.squared)        
-      }
-
-}}
+      R2.DW <- c(R2.DW, (1-(exp(abs(2-dwtest(b)[1]$statistic))-1)/(exp(abs(2))-1)) * summary(b)$adj.r.squared)  
+      
+      }, error=function(e){cat("\n","ERROR :",conditionMessage(e), "\n")})
+   
+}
+} 
+}
       
 if (type == "plm") {
    n.max          <- 0
@@ -602,7 +608,7 @@ ntoc <- function(x) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-ntor <- function(x) {
+ntov <- function(x) {
    (ntoc(x) + 1) * 100
 }
 #'transformation function
@@ -647,7 +653,7 @@ cton <- function(x, base = 100) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-ctor <- function(x) {
+ctov <- function(x) {
    ((x) + 1) * 100
 }
 #'transformation function
@@ -674,15 +680,15 @@ ctop <- function(x, aggregate = 100) {
 #'@param x a ts object
 #'@param base
 #'@export
-rton <- function(x, base = 100) {
-   rtoc(x) %>% cton(base = base)  
+vton <- function(x, base = 100) {
+   vtoc(x) %>% cton(base = base)  
 }
 #'transformation function
 #'
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-rtoc <- function(x) {
+vtoc <- function(x) {
    x/100 - 1
 }
 #'transformation function
@@ -691,8 +697,8 @@ rtoc <- function(x) {
 #'@param x a ts object
 #'@param base
 #'@export
-rtoi <- function(x, base = 100) {
-   rtoc(x) %>% ctoi(base = base)
+vtoi <- function(x, base = 100) {
+   vtoc(x) %>% ctoi(base = base)
 }
 #'transformation function
 #'
@@ -700,8 +706,8 @@ rtoi <- function(x, base = 100) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-rtop <- function(x, aggregate = 100, ...) {
-   rton(x, ...) %>% ntop(aggregate = aggregate)
+vtop <- function(x, aggregate = 100, ...) {
+   vton(x, ...) %>% ntop(aggregate = aggregate)
 }
 #'transformation function
 #'
@@ -729,8 +735,8 @@ itoc <- function(x) {
 #'n- nominal values, c- changes, i- chained index, r- relative index, p- percetange pointes or relative value
 #'@param x a ts object
 #'@export
-itor <- function(x) {
-   ntor(x)
+itov <- function(x) {
+   ntov(x)
 }
 #'transformation function
 #'
@@ -765,7 +771,7 @@ ptoc <- function(x, aggregate = 100) {
 #'@param x a ts object
 #'@param aggregate
 #'@export
-ptor <- function(x, aggregate = 100, ...) {
+ptov <- function(x, aggregate = 100, ...) {
    pton(x, aggregate = aggregate) %>% ntoc(...) 
 }
 #'transformation function
@@ -894,11 +900,11 @@ lag_pmr <- function(df, column, lag = 1, ...){
 #'@param method is the transformation method used
 #'@export
 #'@import zoo
-transform_pmr <- function(data, column, method = "ln", ...) 
+transform_pmr <- function(data, column, method = "l", ...) 
 {
    df <- data
    temp_attr <- attributes(data)$output_table
-   if (method == "ln") 
+   if (method == "l") 
       data <- addLogs(data, column, ...)
    if (method == "d") 
       data <- addDiffs(data, column, ...)
@@ -906,19 +912,19 @@ transform_pmr <- function(data, column, method = "ln", ...)
       data <- filterGap(data, column, ...)
    if (method == "hpt") 
       data <- filterTrend(data, column, ...)
-   if (method == "(l|l\\d|f\\)") {
-      if (method == "l\\") lag = as.numeric(substr(method, 2, 2))
-      if (method == "f\\") lag = -as.numeric(substr(method, 2, 2))
+   if (length(grep("(l\\d|f\\d)", method)) == 1) {
+      if (length(grep("l\\d", method)) == 1) lag =  as.numeric(substr(method, 2, 2))
+      if (length(grep("f\\d", method)) == 1) lag = -as.numeric(substr(method, 2, 2))
       data <- lag_pmr(data, column, ...)
    }
    if (method == "custom") 
       data <- addCustom(data, column, ...)
-   if (length(grep("(n|q|u|r|p)to(n|q|u|r|p)", method)) == 1){
+   if (length(grep("(n|q|u|v|p)to(n|q|u|v|p)", method)) == 1){
       if(length(grep("(n|q|u)to(n|q|u)", method)) == 1) stop("unable to do such transformation, please revise your input to output desired")
       data <- addT(data, column, FUN = get(method), name = method, 
                    ...)
    }
-   if ((length(grep("(i|c)to(n|q|u|r|p|i|c)", method)) == 1) | (length(grep("(n|q|u|r|p|i|c)to(i|c)", method)) == 1)) {
+   if ((length(grep("(i|c)to(n|q|u|v|p|i|c)", method)) == 1) | (length(grep("(n|q|u|v|p|i|c)to(i|c)", method)) == 1)) {
       
       first <- substr(method, 1,1)
       last <- substr(method, 4,4)
@@ -929,8 +935,9 @@ transform_pmr <- function(data, column, method = "ln", ...)
       data <- addI(data, column, FUN = get(method), name = method, ...)
    }
    if (is.null(method) | (!(method %in% c("ln", "d", "hp", 
-                                          "hpt", "l", "custom")) & !(length(grep("(n|q|u|r|p|c|i)to(n|q|u|r|p|c|i)", 
-                                                                                 method)) == 1))) 
+                                          "hpt", "l", "custom")) & 
+                          !(length(grep("(n|q|u|v|p|c|i)to(n|q|u|v|p|c|i)", method)) == 1) &
+                          !(length(grep("(l\\d|f\\d)",                      method)) == 1)  )) 
       stop("unsupported method")
    if (is.numeric(column) == TRUE) {
       new_output_table <- data.frame(variable = colnames(data)[column], 
@@ -995,6 +1002,10 @@ addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time",
 #'@param time_start is the starting period for trends
 #'@param time_names is a vector of names for created trends
 #'@examples mtcars %>% addCustom(2:3, FUN = function(x) log(x), name = "lol")
+#'
+#'transform_pmr(ts(mtcars), column = c("cyl", "disp"), method = "custom", end = TRUE, name = "r", FUN = function(x) {x * as.data.frame(ts(mtcars)[,1])}, 
+#'custom.name = function(df, column, name) c(colnames(df),
+#'                                           sapply(column, function(x) ifelse(length(grep("n", x)) > 0, gsub("n", "r", x), paste0(x, "_r")))))
 #'@export
 
    addCustom <- function(df, column, FUN = log, name = deparse(substitute(FUN)), end = TRUE, custom.name = NULL){
@@ -1033,26 +1044,3 @@ addTrends <- function(data, time_start = 2000, time_names = c("time", "ln_time",
       data
    }
 
-filterGap  <- function(df, column, lambda = 6.25) {
-   if(class(df)[1] == "mts") temp.start = start(df)[1]
-   data <- as.data.frame(df)   
-   for( i in 1:length(column) ) {
-      temp <- vector()
-      if(any(is.na(data[,column[i]])) == TRUE) {
-         temp[as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <- NA
-         temp[-as.vector(attributes(na.omit(data[,column[i]]))$na.action)] <-hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
-      }else {
-         temp <- hpfilter(log(na.omit(data[,column[i]])), freq = lambda, type = "lambda")$cycle
-      }
-      data <- cbind(data, temp)
-   }
-   
-   if (is.numeric(column) == TRUE) 
-   {
-      colnames(data) <- c(colnames(df), paste("hp", colnames(df)[column], sep = "_")) 
-   } else {
-      colnames(data) <- c(colnames(df), paste("hp", column, sep = "_")) 
-   }
-   if(class(df)[1] == "mts") data = ts(data, start = temp.start)
-   return(data)
-}

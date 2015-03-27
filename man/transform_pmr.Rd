@@ -4,7 +4,7 @@
 \alias{transform_pmr}
 \title{transform.pmr function}
 \usage{
-transform_pmr(data, column, method = "ln", ...)
+transform_pmr(data, column, method = "l", ...)
 }
 \arguments{
 \item{data}{is an data.frame or mts object}
